@@ -13,14 +13,43 @@ class TableViewController: UITableViewController {
     
     var tasks: [Task] = [] //чтобы не было ошибки удаляем в локейшн directed data и перезагружаем проект
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        let context = getContext()
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+        let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
+        fetchRequest.sortDescriptors = [sortDescriptor]
+        
+        do {
+            tasks = try context.fetch(fetchRequest)
+        } catch let error as NSError {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func getContext() -> NSManagedObjectContext{
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        return appDelegate.persistentContainer.viewContext //добрались до контекста
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
+        //удаление всех объектов
+        let context = getContext()
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+        if let objects = try? context.fetch(fetchRequest){
+            for object in objects {
+                context.delete(object)
+            }
+        }
         
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem
+        do {
+            try context.save()
+        } catch let error as NSError {
+            print(error.localizedDescription)
+        }
     }
     
     @IBAction func saveTask(_ sender: UIBarButtonItem) {
@@ -43,8 +72,7 @@ class TableViewController: UITableViewController {
     }
     
     private func saveTask(withTitle title: String) {
-        let appDelegate = UIApplication.shared.delegate as! AppDelegate
-        let context = appDelegate.persistentContainer.viewContext //добрались до контекста
+        let context = getContext()
         
         guard let entity = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
         
@@ -53,10 +81,12 @@ class TableViewController: UITableViewController {
         
         do {
             try context.save()
+            tasks.append(taskObject)
         } catch let error as NSError {
             print(error.localizedDescription)
         }
     }
+    
     // MARK: - Table view data source
     
     override func numberOfSections(in tableView: UITableView) -> Int {
